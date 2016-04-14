@@ -11,8 +11,8 @@ const unsigned long stepsMotor = 3000;          // 160000;    //220000 to 2 mete
 const unsigned long stepsErase = 3;            //
 const unsigned long stepsMotorErase = 800;    // Pasos de borraado  
 // THRS, TIMERS & SPEEDS 
-const int velocity = 650;                    //maxima 650
-//const int velocityErase = 650;             // velocity particular para el Erase
+const int velocity =  650;                    //maxima 650
+const int velocityErase = 1000;             // velocity particular para el Erase
 const int timer = 10;                        // timer
 const int threshold = 5;                     // thrs fin de carrera
 // Fines de carrera
@@ -101,11 +101,11 @@ void right() {
 }
 void borrar_right() {
   digitalWrite(dir, HIGH);
-  for (unsigned long i = 0; i < stepsMotorErase; i++) {functionMove();}
+  for (unsigned long i = 0; i < stepsMotorErase; i++) {functionMoveErase();}
 }
 void borrar_left() {
   digitalWrite(dir, LOW);
-  for (unsigned long i = 0; i < stepsMotorErase; i++) {functionMove();}
+  for (unsigned long i = 0; i < stepsMotorErase; i++) {functionMoveErase();}
 }
 void right_2() {
   digitalWrite(dir_2, HIGH);
@@ -118,6 +118,18 @@ void left() {
 void left_2() {
   digitalWrite(dir_2, LOW);
   for (unsigned long i = 0; i < stepsMotor; i++) {functionMove_2();}
+}
+void functionMove() {
+  digitalWrite(steps, HIGH);
+  delayMicroseconds(velocity);
+  digitalWrite(steps, LOW);
+  delayMicroseconds(velocity);
+}
+void functionMoveErase() {
+  digitalWrite(steps, HIGH);
+  delayMicroseconds(velocityErase);
+  digitalWrite(steps, LOW);
+  delayMicroseconds(velocityErase);
 }
 void functionMove_2() {
   digitalWrite(steps_2, HIGH);
