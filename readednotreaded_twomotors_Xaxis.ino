@@ -1,28 +1,28 @@
 //ARRAY
 #include <avr/pgmspace.h>
-const PROGMEM uint16_t pixelX[]   = {  5000, 10000, 7000, 5000, 2000, 1500, 1200, 1000, 6000};
-const PROGMEM uint16_t pixelX_2[] = {  1000, 1950, 7000, 650, 1550, 1500, 5000, 2000, 6000};
+const PROGMEM uint16_t pixelX_Izq[]   = {  5000, 10000, 7000, 5000, 2000, 1500, 1200, 1000, 6000};
+const PROGMEM uint16_t pixelX_Der[] = {  1000, 1950, 7000, 650, 1550, 1500, 5000, 2000, 6000};
 long arraySize = 9;                 //726; //cantidad de fijaciones
 long n = 1;
 long m = 0;
 //configurar estas variables según dimensiones de hoja a usar
-const int minX = 0;
-const int maxX = 1000;
-const int minX_2 = 0;
-const int maxX_2 = 1000;
+const int minX_Izq = 0;
+const int maxX_Izq = 1000;
+const int minX_Der = 0;
+const int maxX_Der = 1000;
 float f = 7;//con guias lineales 13.5
-long posX = 0; //Pasos convertidos a partir de la variable en X
-long posX_2 = 0; //Pasos convertidos a partir de la variable en X
-long counterX = 0;
-long counterX_2 = 0;
+long posX_Izq = 0; //Pasos convertidos a partir de la variable en X
+long posX_Der = 0; //Pasos convertidos a partir de la variable en X
+long counterX_Izq = 0;
+long counterX_Der = 0;
 // MOTOR 2
-const int reset_2 = 7;
-const int steps_2 = 8;
-const int dir_2 = 9;
+const int reset_Der = 2;
+const int steps_Der = 0;
+const int dir_Der = 1;
 // MOTOR 1
-const int reset = 2;
-const int steps = 3;
-const int dir = 4;
+const int reset_Izq = 7;
+const int steps_Izq = 4;
+const int dir_Izq = 3;
 // STEPS
 const unsigned long stepsMotor = 1000;          // 160000;    //220000 to 2 meters aprox.   //1000 pasos @ 650 de velocity equivalen a ->
 const unsigned long stepsMotorErase = 800;      // Pasos de borrado
@@ -55,15 +55,13 @@ const int LED_4 = 13;
 
 // SETTINGS
 void setup() {
-  // Check sensors.
-  //Serial.begin(9600);
   //pinModes
-  pinMode(reset, OUTPUT);
-  pinMode(steps, OUTPUT);
-  pinMode(dir, OUTPUT);
-  pinMode(reset_2, OUTPUT);
-  pinMode(steps_2, OUTPUT);
-  pinMode(dir_2, OUTPUT);
+  pinMode(reset_Izq, OUTPUT);
+  pinMode(steps_Izq, OUTPUT);
+  pinMode(dir_Izq, OUTPUT);
+  pinMode(reset_Der, OUTPUT);
+  pinMode(steps_Der, OUTPUT);
+  pinMode(dir_Der, OUTPUT);
   // LEDS
   pinMode(LED_1, OUTPUT);
   pinMode(LED_2, OUTPUT);
@@ -136,55 +134,55 @@ void borrar() {
   if (flagFindZero == LOW) {
      arrayRead();
     //secuencia de encendido()
-    digitalWrite(reset, HIGH);
-    digitalWrite(reset_2, HIGH);
+    digitalWrite(reset_Izq, HIGH);
+    digitalWrite(reset_Der, HIGH);
     flag = HIGH;
     //movimiento de motores en X Y x2
     if (flag == HIGH) {
-      if (posX > 0) {//hacia la izquierda
+      if (posX_Izq > 0) {//hacia la izquierda
          valEndIzquierda = analogRead(A0);      //LÍMITES MECÁNICOS. leo el sensor
           if (valEndIzquierda < threshold) {    //si llega al sensor
-          posX = 0;                             // cree que llegó al punto
-          counterX= posX;
+          posX_Izq = 0;                             // cree que llegó al punto
+          counterX_Izq= posX_Izq;
           } 
-        digitalWrite(dir, LOW);
-        if (counterX < posX) {
-          moveMotor(steps, velocity);           //Move
-          counterX++;
+        digitalWrite(dir_Izq, LOW);
+        if (counterX_Izq < posX_Izq) {
+          moveMotor(steps_Izq, velocity);           //Move
+          counterX_Izq++;
         }
       }
-      else if (posX < 0) {
-        digitalWrite(dir, HIGH);
-        if (counterX < (-posX)) {
-          moveMotor(steps, velocity);
-          counterX++;
+      else if (posX_Izq < 0) {
+        digitalWrite(dir_Izq, HIGH);
+        if (counterX_Izq < (-posX_Izq)) {
+          moveMotor(steps_Izq, velocity);
+          counterX_Izq++;
         }
       }
 
-      if (posX_2 > 0) {                         //hacia abajo
-        digitalWrite(dir_2, LOW);
-        if (counterX_2 < posX_2) {
-          moveMotor(steps_2, velocity);
-          counterX_2++;
+      if (posX_Der > 0) {                         //hacia abajo
+        digitalWrite(dir_Der, LOW);
+        if (counterX_Der < posX_Der) {
+          moveMotor(steps_Der, velocity);
+          counterX_Der++;
         }
       }
-      else if (posX_2 < 0) {                         //hacia arriba
+      else if (posX_Der < 0) {                         //hacia arriba
         valEndDerecha = analogRead(A2);             //LÍMITES MECÁNICOS. leo el sensor
           if (valEndDerecha < threshold) {          //si llega al sensor
-           posX_2 = 0;                              // cree que llegó al punto
-           counterX_2 = posX_2;
+           posX_Der = 0;                              // cree que llegó al punto
+           counterX_Der = posX_Der;
           }  
-        digitalWrite(dir_2, HIGH);
-        if (counterX_2 < (-posX_2)) {
-          moveMotor(steps_2, velocity);
-          counterX_2++;
+        digitalWrite(dir_Der, HIGH);
+        if (counterX_Der < (-posX_Der)) {
+          moveMotor(steps_Der, velocity);
+          counterX_Der++;
         }
       }
     }
-    if (counterX == abs(posX) && counterX_2 == abs(posX_2)) {
+    if (counterX_Izq == abs(posX_Izq) && counterX_Der == abs(posX_Der)) {
       eraseMovement();                                 //marco la fijacion
-      counterX = 0;
-      counterX_2 = 0;
+      counterX_Izq = 0;
+      counterX_Der = 0;
       m = n;
       n++;                                            //avanzo una posición en el array
       if (n == arraySize - 1) {
@@ -210,17 +208,17 @@ void arrayRead() {   //FALTA LECTURA X_2
      tengo que saber mi posición actual Y hacer el calculo Y ver si está dentro de mi hoja
      si no está dentro de mi hoja n++
   */
-   posX = pgm_read_word_near(pixelX + n);                            //leo nueva cordenada en X
-    while ( posX < minX || posX > maxX) {                             //si posX se sale de lo límites
+   posX_Izq = pgm_read_word_near(pixelX_Izq + n);                            //leo nueva cordenada en X
+    while ( posX_Izq < minX_Izq || posX_Izq > maxX_Izq) {                             //si posX se sale de lo límites
     n++;                                                            //avanzo una posición
-    posX = pgm_read_word_near(pixelX + n);
+    posX_Izq = pgm_read_word_near(pixelX_Izq + n);
     digitalWrite(LED_1, HIGH);
     delay(200);
     digitalWrite(LED_1, LOW);
   }
   
-  posX = pgm_read_word_near(pixelX + n);                             //leo nueva posición en X
-  posX = (posX - pgm_read_word_near(pixelX + m)) * f;                //posX = cantidad de pasos de motor en "x" que debe efectuar para ir a destino
+  posX_Izq = pgm_read_word_near(pixelX_Izq + n);                             //leo nueva posición en X
+  posX_Izq = (posX_Izq - pgm_read_word_near(pixelX_Izq + m)) * f;                //posX = cantidad de pasos de motor en "x" que debe efectuar para ir a destino
 }
 void moveMotor(int pinStep, int velocidad) {
   digitalWrite(pinStep, HIGH);
@@ -228,65 +226,65 @@ void moveMotor(int pinStep, int velocidad) {
   digitalWrite(pinStep, LOW);
   delayMicroseconds(velocidad);
 }
-void eraseMovement() {
-  digitalWrite(dir, HIGH);
+void eraseMovement() {  ///HAY QUE HACER UNO PARA MOTOR DERECHO
+  digitalWrite(dir_Izq, HIGH);
   delay(1000);
   eraserZDown();
   for (unsigned long i = 0; i < stepsMotorErase; i++) {
     functionMoveErase();
   }
-  digitalWrite(dir, LOW);
+  digitalWrite(dir_Izq, LOW);
   for (unsigned long i = 0; i < stepsMotorErase; i++) {
     functionMoveErase();
   }
-  digitalWrite(dir, HIGH);
+  digitalWrite(dir_Izq, HIGH);
   eraserZUp();
 }
 void eraserZDown(){/*MOVIMIENTO EN Z DEL ERASER*/}
 void eraserZUp(){/*MOVIMIENTO EN Z DEL ERASER*/}
 void right() {
-  digitalWrite(dir, HIGH);
-  moveMotor(steps, velocity);
+  digitalWrite(dir_Izq, HIGH);
+  moveMotor(steps_Izq, velocity);
 }
 void right_2() {
-  digitalWrite(dir_2, HIGH);
-  moveMotor(steps_2, velocity);
+  digitalWrite(dir_Der, HIGH);
+  moveMotor(steps_Der, velocity);
 }
 void left() {
-  digitalWrite(dir, LOW);
-  moveMotor(steps, velocity);
+  digitalWrite(dir_Izq, LOW);
+  moveMotor(steps_Izq, velocity);
 }
 void left_2() {
-  digitalWrite(dir_2, LOW);
-  moveMotor(steps_2, velocity);
+  digitalWrite(dir_Der, LOW);
+  moveMotor(steps_Der, velocity);
 }
 void functionMoveErase() {
-  digitalWrite(steps, HIGH);
+  digitalWrite(steps_Izq, HIGH);
   delayMicroseconds(velocityErase);
-  digitalWrite(steps, LOW);
+  digitalWrite(steps_Izq, LOW);
   delayMicroseconds(velocityErase);
 }
 void functionMove() {
-  digitalWrite(steps, HIGH);
+  digitalWrite(steps_Izq, HIGH);
   delayMicroseconds(velocity);
-  digitalWrite(steps, LOW);
+  digitalWrite(steps_Izq, LOW);
   delayMicroseconds(velocity);
 }
 void functionMove_2() {
-  digitalWrite(steps_2, HIGH);
+  digitalWrite(steps_Der, HIGH);
   delayMicroseconds(velocity);
-  digitalWrite(steps_2, LOW);
+  digitalWrite(steps_Der, LOW);
   delayMicroseconds(velocity);
 }
 void turnOff()  {
-  digitalWrite(reset, LOW)   ;
+  digitalWrite(reset_Izq, LOW)   ;
 }
 void turnOff_2() {
-  digitalWrite(reset_2, LOW)  ;
+  digitalWrite(reset_Der, LOW)  ;
 }
 void turnOn()   {
-  digitalWrite(reset, HIGH)  ;
+  digitalWrite(reset_Izq, HIGH)  ;
 }
 void turnOn_2() {
-  digitalWrite(reset_2, HIGH);
+  digitalWrite(reset_Der, HIGH);
 }
