@@ -34,11 +34,11 @@ const int dir_Z_Derecha =    11;
 // STEPS
 const unsigned long stepsMotor = 1000;            // 160000;    //220000 to 2 meters aprox.   //1000 pasos @ 650 de velocity equivalen a ->
 const unsigned long stepsMotorErase = 800;       // Pasos de borrado
-const unsigned long stepsZ = 1000;               //Pasos del movimiento en Z
+const unsigned long stepsZ = 1000;              //Pasos del movimiento en Z
 // THRS, TIMERS & SPEEDS
 const int velocity =  650;
 const int velocity_Izquierda =  450;           //maxima 650
-const int velocityErase = 1000;                 // velocity particular para el Erase (mas lento)
+const int velocityErase = 1000;                // velocity particular para el Erase (mas lento)
 const int velocityZ = 650;
 const int timer = 100;                          // timer
 const int threshold =   8;
@@ -108,6 +108,7 @@ void findZero() {
   //No quedan frenados y funciona trabado.
   //FIN DE CARRERA EJE X. IZQUIERDA
   if (sensorValueA0 >  threshold)     {
+    flagEndX_1 = LOW;
     turnOn();
     left();
   }
@@ -117,6 +118,7 @@ void findZero() {
   }
   //FIN DE CARRERA EJE X. DERECHA
   if (sensorValueA2 >  threshold)   {
+    flagEndX_2 = LOW;
     turnOn_2();
     left_2();
   }
@@ -124,17 +126,17 @@ void findZero() {
     flagEndX_2 = HIGH;
     turnOff_2();
   }
-  //IF BOTH ARE ON X= 0
-  if (flagEndX_1   == HIGH)   {
-    digitalWrite(LED_1, HIGH);
-  }   else {
-    digitalWrite(LED_1, LOW);
-  }
-  if (flagEndX_2 == HIGH)   {
-    digitalWrite(LED_2, HIGH);
-  } else {
-    digitalWrite(LED_2, LOW);
-  }
+//IF BOTH ARE ON X= 0
+//  if (flagEndX_1   == HIGH)   {
+//    digitalWrite(LED_1, HIGH);
+//  }   else {
+//    digitalWrite(LED_1, LOW);
+//  }
+//  if (flagEndX_2 == HIGH)   {
+//    digitalWrite(LED_2, HIGH);
+//  } else {
+//    digitalWrite(LED_2, LOW);
+//  }
   if ((flagEndX_1 == HIGH) && (flagEndX_2 == HIGH))  {
     flagFindZero = LOW;
     delay(timer);
@@ -146,7 +148,7 @@ void findZero() {
     delay(timer);
     digitalWrite(LED_2, HIGH);
     delay(timer);
-  }
+}
 }
 void borrar() {
   if (flagFindZero == LOW) {
@@ -195,26 +197,26 @@ void borrar() {
       //      }
     }
     if (counterX_Izq == abs(posX_Izq)) {
-      delay(500);
-      eraserZDown(steps_Z_Izquierda, dir_Z_Izquierda, reset_Z_Izquierda);
-     // for (int i = 0; i < 2; i++) { eraseMovement(dir_Izq, steps_Z_Izquierda, dir_Z_Izquierda ); }
-      eraseMovement(dir_Izq, steps_Z_Izquierda, dir_Z_Izquierda );
-      eraserZUp(steps_Z_Izquierda, dir_Z_Izquierda, reset_Z_Izquierda);
-      counterX_Izq = 0;
-      m = n;
-      n++;                                                //avanzo una posición en el array
-     
-      if (n == arraySize - 1) {
-        n = 1;
-        m = 0;
-        flagFindZero = HIGH;                             
-        flagEndX_1 = LOW;
-        flagEndX_2 = LOW;
-        findZero();
-       }
-      arrayRead();        //nueva lectura                                
-    }
-  }
+     delay(500);
+     eraserZDown(steps_Z_Izquierda, dir_Z_Izquierda, reset_Z_Izquierda);
+     for (int i = 0; i < 2; i++) { eraseMovement(dir_Izq, steps_Z_Izquierda, dir_Z_Izquierda ); }     
+     eraserZUp(steps_Z_Izquierda, dir_Z_Izquierda, reset_Z_Izquierda);
+     counterX_Izq = 0;
+     counterX_Der = 0;
+     m = n;
+     n++;                                                // avanzo una posición en el array
+     if (n == arraySize - 1) {                           // tiene que ir -1
+     n = 1;
+     m = 0;
+     flagEndX_1 = LOW;
+     flagEndX_2 = LOW;
+     flagFindZero = HIGH;  
+     flag = LOW;                                      //por esto no reiniciaba                       
+     findZero();
+}
+     arrayRead();                                       //  nueva lectura        
+}
+}
 }
 
 void arrayRead() {   //FALTA LECTURA X_2
@@ -240,7 +242,7 @@ void moveMotor(int pinStep, int velocidad) {
 }
 
 
-void eraseMovement(int pinDirX, int pinStepsZ, int pinDirZ) {  ///HAY QUE HACER UNO PARA MOTOR DERECHO
+void eraseMovement(int pinDirX, int pinStepsZ, int pinDirZ) {  
   digitalWrite(pinDirX, HIGH);
   delay(10);
   for (unsigned long i = 0; i < stepsMotorErase; i++) {
@@ -251,7 +253,7 @@ void eraseMovement(int pinDirX, int pinStepsZ, int pinDirZ) {  ///HAY QUE HACER 
   for (unsigned long i = 0; i < stepsMotorErase; i++) {
     functionMoveErase(steps_Izq, velocityErase);
   }
-  digitalWrite(pinDirX, HIGH);
+  //digitalWrite(pinDirX, HIGH);
 }
 
 
