@@ -2,17 +2,17 @@
 #include <avr/pgmspace.h>
 const PROGMEM uint16_t pixelX_Izq[] = {  1000, 800, 700, 600, 500, 800, 200, 500, 300};
 const PROGMEM uint16_t pixelX_Der[] = {  1000, 1950, 7000, 650, 1550, 1500, 5000, 2000, 6000};
-long arraySize = 9;                 //726; //cantidad de fijaciones
+long arraySize = 9;                                                                                 //726; //cantidad de fijaciones
 long n = 1;
 long m = 0;
-//configurar estas variables según dimensiones de hoja a usar
+//HAY QUE MODIFICAR ESTO
 const int minX_Izq = 0;
 const int maxX_Izq = 2000;
 const int minX_Der = 0;
 const int maxX_Der = 2000;
-float f = 7;//con guias lineales 13.5
-long posX_Izq = 0; //Pasos convertidos a partir de la variable en X
-long posX_Der = 0; //Pasos convertidos a partir de la variable en X
+float f = 7;                                                                                    // RECALCULAR con guias lineales 13.5
+long posX_Izq = 0;                                                                              //Pasos convertidos a partir de la variable en X
+long posX_Der = 0;                                                                              //Pasos convertidos a partir de la variable en X
 long counterX_Izq = 0;
 long counterX_Der = 0;
 // MOTOR DERECHA
@@ -32,15 +32,14 @@ const int reset_Z_Derecha =  13;
 const int steps_Z_Derecha =  12;
 const int dir_Z_Derecha =    11;
 // STEPS
-const unsigned long stepsMotor = 1000;            // 160000;    //220000 to 2 meters aprox.   //1000 pasos @ 650 de velocity equivalen a ->
-const unsigned long stepsMotorErase = 800;       // Pasos de borrado
-const unsigned long stepsZ = 1000;              //Pasos del movimiento en Z
+const unsigned long stepsMotorErase = 800;                                                      // Pasos de borrado
+const unsigned long stepsZ = 1000;                                                              //Pasos del movimiento en Z
 // THRS, TIMERS & SPEEDS
 const int velocity =  650;
-const int velocity_Izquierda =  450;           //maxima 650
-const int velocityErase = 1000;                // velocity particular para el Erase (mas lento)
-const int velocityZ = 650;
-const int timer = 100;                          // timer
+const int velocity_Izquierda =  300;                                                            //para evitar ruido al buscar cero
+const int velocityErase = 1200;                                                                // velocity particular para el Erase (mas lento)
+const int velocityZ = 650;                                                                     //velocity del pivot
+const int timer = 100;                                                                           // timer uso general
 const int threshold =   8;
 // Fines de carrera
 int sensorValueA0;
@@ -59,8 +58,8 @@ int flagFindZero = HIGH;                        //si pongo LOW evita buscar el c
 int flagEndX_1 = LOW;
 int flagEndX_2 = LOW;
 // Leds usos multiples
-const int LED_1 = A4;
-const int LED_2 = A5;
+//const int LED_1 = A4;
+//const int LED_2 = A5;
 //const int LED_3 = 12;
 //const int LED_4 = 13;
 
@@ -80,12 +79,12 @@ void setup() {
   pinMode(steps_Z_Derecha, OUTPUT);
   pinMode(dir_Z_Derecha, OUTPUT);
   // LEDS
-  pinMode(LED_1, OUTPUT);
-  pinMode(LED_2, OUTPUT);
+  //pinMode(LED_1, OUTPUT);
+  //pinMode(LED_2, OUTPUT);
   //pinMode(LED_3, OUTPUT);
   //pinMode(LED_4, OUTPUT);
-  digitalWrite(LED_1, LOW);
-  digitalWrite(LED_2, LOW);
+  //digitalWrite(LED_1, LOW);
+  //digitalWrite(LED_2, LOW);
   //digitalWrite(LED_3, LOW);
   //digitalWrite(LED_4, LOW);
 }
@@ -139,15 +138,15 @@ void findZero() {
 //  }
   if ((flagEndX_1 == HIGH) && (flagEndX_2 == HIGH))  {
     flagFindZero = LOW;
-    delay(timer);
-    digitalWrite(LED_1, LOW);
-    delay(timer);
-    digitalWrite(LED_1, HIGH);
-    delay(timer);
-    digitalWrite(LED_2, LOW);
-    delay(timer);
-    digitalWrite(LED_2, HIGH);
-    delay(timer);
+//    delay(timer);                                        //JUEGO DE LEDS DE FINDZERO
+//    digitalWrite(LED_1, LOW);
+//    delay(timer);
+//    digitalWrite(LED_1, HIGH);
+//    delay(timer);
+//    digitalWrite(LED_2, LOW);
+//    delay(timer);
+//    digitalWrite(LED_2, HIGH);
+//    delay(timer);
 }
 }
 void borrar() {
@@ -211,7 +210,7 @@ void borrar() {
      flagEndX_1 = LOW;
      flagEndX_2 = LOW;
      flagFindZero = HIGH;  
-     flag = LOW;                                      //por esto no reiniciaba                       
+     flag = LOW;                           
      findZero();
 }
      arrayRead();                                       //  nueva lectura        
