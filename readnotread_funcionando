@@ -1,28 +1,26 @@
 //ARRAY
 #include <avr/pgmspace.h>
-const PROGMEM uint16_t pixelX_Izq[] = {  1000, 900, 100, 600, 500, 800, 200, 500, 300};
+const PROGMEM uint16_t pixelX_Izq[] = {  10000, 5000, 9800, 7000, 6000, 5000, 4000, 3000, 2500};
 const PROGMEM uint16_t pixelX_Der[] = {  1000, 1950, 7000, 650, 1550, 1500, 5000, 2000, 6000};
 long arraySize = 9;                                                                                 //726; //cantidad de fijaciones
 long n = 1;
 long m = 0;
 //HAY QUE MODIFICAR ESTO
 const int minX_Izq = 0;
-const int maxX_Izq = 2000;
-const int minX_Der = 0;
-const int maxX_Der = 2000;
-float f = 7;                                                                                    // RECALCULAR con guias lineales 13.5
+const int maxX_Izq = 10000;
+float f = 10;                                                                                    // RECALCULAR con guias lineales 13.5
 long posX_Izq = 0;                                                                              //Pasos convertidos a partir de la variable en X
 long posX_Der = 0;                                                                              //Pasos convertidos a partir de la variable en X
 long counterX_Izq = 0;
 long counterX_Der = 0;
 // MOTOR DERECHA
 const int reset_Der = 2;
-const int steps_Der = 0;
-const int dir_Der = 1;
-// MOTOR IZQUIERDA
-const int reset_Izq = 7;
-const int steps_Izq = 4;
-const int dir_Izq = 3;
+const int steps_Der = 1;
+const int dir_Der = 0;
+// MOTOR IZQUIERDA  // NO ES CONSTANTE
+int reset_Izq = 7;
+int steps_Izq = 4;
+int dir_Izq = 3;
 // MOTOR Z IZQUIERDA
 const int reset_Z_Izquierda = 10;
 const int steps_Z_Izquierda = 9;
@@ -35,7 +33,7 @@ const int dir_Z_Derecha =    11;
 const unsigned long stepsMotorErase = 800;                                                      // Pasos de borrado
 const unsigned long stepsZ = 1000;                                                              //Pasos del movimiento en Z
 // THRS, TIMERS & SPEEDS
-const int velocity =  650;
+const int velocity =  450;
 const int velocity_Izquierda =  300;                                                            //para evitar ruido al buscar cero
 const int velocityErase = 1000;                                                                // velocity particular para el Erase (mas lento)
 const int velocityZ = 650;                                                                     //velocity del pivot
@@ -43,9 +41,9 @@ const int timer = 100;                                                          
 const int threshold =   8;
 // Fines de carrera
 int sensorValueA0;
-int sensorValueA1;
+int sensorValueA4;
 int sensorValueA2;
-int sensorValueA3;
+int sensorValueA5;
 int valEndIzquierda;
 int valEndDerecha;
 //FLAGS TRIGGERS
@@ -57,14 +55,10 @@ int FLAG_4;
 int flagFindZero = HIGH;                        //si pongo LOW evita buscar el cero
 int flagEndX_1 = LOW;
 int flagEndX_2 = LOW;
-// Leds usos multiples
-//const int LED_1 = A4;
-//const int LED_2 = A5;
-//const int LED_3 = 12;
-//const int LED_4 = 13;
 
 // SETTINGS
 void setup() {
+  //Serial.begin(9600);
   //pinModes
   pinMode(reset_Izq, OUTPUT);
   pinMode(steps_Izq, OUTPUT);
@@ -78,31 +72,23 @@ void setup() {
   pinMode(reset_Z_Derecha, OUTPUT);
   pinMode(steps_Z_Derecha, OUTPUT);
   pinMode(dir_Z_Derecha, OUTPUT);
-  // LEDS
-  //pinMode(LED_1, OUTPUT);
-  //pinMode(LED_2, OUTPUT);
-  //pinMode(LED_3, OUTPUT);
-  //pinMode(LED_4, OUTPUT);
-  //digitalWrite(LED_1, LOW);
-  //digitalWrite(LED_2, LOW);
-  //digitalWrite(LED_3, LOW);
-  //digitalWrite(LED_4, LOW);
 }
 
 void loop() {
-
+ // Serial.println(sensorValueA5);
+ 
   if (flagFindZero == HIGH) {
     findZero();
   }
+  sensorValueA4 = digitalRead(A4);   //PUENTE          - DER a IZQ     [DER A IZQ]
+  sensorValueA5 = digitalRead(A5);   //Fin de carrera  - DER a IZQ     [EXTREMO DERECHO]
   borrar();
 }
 
 
 void findZero() {
   sensorValueA0 = analogRead(A0);   //PUENTE          - IZQ a DER     [IZQ A DER]
- // sensorValueA1 = analogRead(A1);   //PUENTE          - DER a IZQ     [DER A IZQ]
   sensorValueA2 = analogRead(A2);   //Fin de carrera  - IZQ a DER     [EXTREMO IZQUIERDO]
- // sensorValueA3 = analogRead(A3);   //Fin de carrera  - DER a IZQ     [EXTREMO DERECHO]
 
   //No quedan frenados y funciona trabado.
   //FIN DE CARRERA EJE X. IZQUIERDA
@@ -125,28 +111,9 @@ void findZero() {
     flagEndX_2 = HIGH;
     turnOff_2();
   }
-//IF BOTH ARE ON X= 0
-//  if (flagEndX_1   == HIGH)   {
-//    digitalWrite(LED_1, HIGH);
-//  }   else {
-//    digitalWrite(LED_1, LOW);
-//  }
-//  if (flagEndX_2 == HIGH)   {
-//    digitalWrite(LED_2, HIGH);
-//  } else {
-//    digitalWrite(LED_2, LOW);
-//  }
+
   if ((flagEndX_1 == HIGH) && (flagEndX_2 == HIGH))  {
     flagFindZero = LOW;
-//    delay(timer);                                        //JUEGO DE LEDS DE FINDZERO
-//    digitalWrite(LED_1, LOW);
-//    delay(timer);
-//    digitalWrite(LED_1, HIGH);
-//    delay(timer);
-//    digitalWrite(LED_2, LOW);
-//    delay(timer);
-//    digitalWrite(LED_2, HIGH);
-//    delay(timer);
 }
 }
 void borrar() {
@@ -157,43 +124,42 @@ void borrar() {
       digitalWrite(reset_Izq, HIGH);
       digitalWrite(reset_Der, HIGH);
       flag = HIGH;
-    }
+}
     //movimiento de motores en X Y x2
     if (flag == HIGH) {                           //Motor de la izquierda
-      if (posX_Izq > 0) {                         //hacia la izquierda
+        if (posX_Izq > 0) {                       //hacia la izquierda
         digitalWrite(dir_Izq, LOW);
         if (counterX_Izq < posX_Izq) {
-          moveMotor(steps_Izq, velocity);           //Move
+          moveMotor(steps_Izq, velocity);         //Move
+          if (sensorValueA5 == HIGH) {                
+            reset_Izq = 2;
+            steps_Izq = 1;
+            dir_Izq = 0;
+            } else if (sensorValueA5 == LOW) {
+            reset_Izq = 7;
+            steps_Izq = 4;
+            dir_Izq = 3;
+              }
           counterX_Izq++;
         }
       }
-      else if (posX_Izq < 0) {
+      else if (posX_Izq < 0) {                    //hacia la derecha.
         digitalWrite(dir_Izq, HIGH);
         if (counterX_Izq < (-posX_Izq)) {
           moveMotor(steps_Izq, velocity);
+           if (sensorValueA4 == LOW) {
+            reset_Izq = 2;
+            steps_Izq = 1;
+            dir_Izq = 0;
+            } else if (sensorValueA4 == HIGH) {
+            reset_Izq = 7;
+            steps_Izq = 4;
+            dir_Izq = 3;
+              }
           counterX_Izq++;
         }
       }
-      //      if (posX_Der > 0) {                         //hacia abajo
-      //        digitalWrite(dir_Der, LOW);
-      //        if (counterX_Der < posX_Der) {
-      //          moveMotor(steps_Der, velocity);
-      //          counterX_Der++;
-      //        }
-      //      }
-      //      else if (posX_Der < 0) {                       //hacia arriba
-      //        valEndDerecha = analogRead(A2);             //LÍMITES MECÁNICOS. leo el sensor
-      //          if (valEndDerecha < threshold) {          //si llega al sensor
-      //           posX_Der = 0;                            // cree que llegó al punto
-      //           counterX_Der = posX_Der;
-      //          }
-      //        digitalWrite(dir_Der, HIGH);
-      //        if (counterX_Der < (-posX_Der)) {
-      //          moveMotor(steps_Der, velocity);
-      //          counterX_Der++;
-      //        }
-      //      }
-    }
+}
     if (counterX_Izq == abs(posX_Izq)) {
      delay(500);
      eraserZDown(steps_Z_Izquierda, dir_Z_Izquierda, reset_Z_Izquierda);
