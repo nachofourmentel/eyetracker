@@ -80,8 +80,8 @@ void loop() {
   if (flagFindZero == HIGH) {
     findZero();
   }
-  sensorValueA4 = analogRead(A4);   //PUENTE          - DER a IZQ     [DER A IZQ]
-  sensorValueA5 = analogRead(A5);   //Fin de carrera  - DER a IZQ     [EXTREMO DERECHO]
+  sensorValueA4 = digitalRead(A4);   //PUENTE          - DER a IZQ     [DER A IZQ]
+  sensorValueA5 = digitalRead(A5);   //Fin de carrera  - DER a IZQ     [EXTREMO DERECHO]
   borrar();
 }
 
