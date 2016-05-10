@@ -8,7 +8,17 @@ long m = 0;
 //HAY QUE MODIFICAR ESTO
 const int minX_Izq = 0;
 const int maxX_Izq = 10000;
-float f = 20;                                                                                    // RECALCULAR con guias lineales 13.5
+
+/*
+  factor.   10.0000 pasos son 5CM. (de motor paso a paso de brida 28mm con acople de 5mm  y varilla roscada de X mm )
+   como convertir pixeles a pasos:
+  (159mm(ancho de formato de texto)* 10000pap/ 50mm)/ 1890pX(ancho en pixeles) = f
+  (159mm(ancho de formato de texto)* 10000pap/ 50mm)= 25645,16 (cantidad de pasos necesarios para recorrer el ancho del formato del texto)
+  25646,16 / 1890pX= 13.56 = f 
+*/
+
+
+float f = 2;                                                                                    // RECALCULAR con guias lineales 13.5
 long posX_Izq = 0;                                                                              //Pasos convertidos a partir de la variable en X
 long posX_Der = 0;                                                                              //Pasos convertidos a partir de la variable en X
 long counterX_Izq = 0;
@@ -35,8 +45,10 @@ const unsigned long stepsZ = 1000;                                              
 // THRS, TIMERS & SPEEDS
 const int velocity =  450;
 const int velocity_Izquierda =  300;                                                            //para evitar ruido al buscar cero
-const int velocityErase = 1000;                                                                // velocity particular para el Erase (mas lento)
-const int velocityZ = 650;                                                                     //velocity del pivot
+const int velocityErase = 850;                                                                // velocity particular para el Erase (mas lento)
+const int velocityZ = 650;    
+const int speedFZ = 400;
+//velocity del pivot
 const int timer = 100;                                                                           // timer uso general
 const int threshold =   8;
 // Fines de carrera
@@ -89,31 +101,45 @@ void loop() {
 void findZero() {
   sensorValueA0 = analogRead(A0);   //PUENTE          - IZQ a DER     [IZQ A DER]
   sensorValueA2 = analogRead(A2);   //Fin de carrera  - IZQ a DER     [EXTREMO IZQUIERDO]
-
+  boolean moverIzq = false;
+  boolean moverDer = false;
   //No quedan frenados y funciona trabado.
   //FIN DE CARRERA EJE X. IZQUIERDA
   if (sensorValueA0 >  threshold)     {
     flagEndX_1 = LOW;
     turnOn();
-    left();
+    //left();
+    moverIzq = true;
   }
   if (sensorValueA0 <  threshold)     {
     flagEndX_1  = HIGH;
     turnOff();
+    moverIzq = false;
   }
   //FIN DE CARRERA EJE X. DERECHA
   if (sensorValueA2 >  threshold)   {
     flagEndX_2 = LOW;
     turnOn_2();
-    left_2();
+    moverDer = true;
+    //left_2();
   }
   if (sensorValueA2 <  threshold)   {
     flagEndX_2 = HIGH;
     turnOff_2();
+    moverDer = false;
   }
-
+if ((moverDer == true) && (moverIzq == true)) { //para mover los 2 motores juntos
+    moveMotorXY();
+  } else {//sino se mueven por separados
+    if (moverDer = true) {
+      left();
+    }
+    if (moverIzq = true) {
+      left_2();
+    }
   if ((flagEndX_1 == HIGH) && (flagEndX_2 == HIGH))  {
     flagFindZero = LOW;
+}
 }
 }
 void borrar() {
@@ -130,12 +156,12 @@ void borrar() {
         if (posX_Izq > 0) {                       //hacia la izquierda
         if (counterX_Izq < posX_Izq) {
           moveMotor(steps_Izq, velocity);         //Move
-          if (sensorValueA5 == HIGH) {                
+          if (sensorValueA5 == LOW) {                
             reset_Izq = 2;
             steps_Izq = 1;
             dir_Izq = 0;
             digitalWrite(dir_Izq, HIGH);
-            } else if (sensorValueA5 == LOW ) {
+            } else if (sensorValueA5 == HIGH ) {
             digitalWrite(dir_Izq, LOW);
             reset_Izq = 7;
             steps_Izq = 4;
@@ -244,7 +270,7 @@ void right() {
   moveMotor(steps_Izq, velocity);
 }
 void right_2() {
-  digitalWrite(dir_Der, HIGH);
+  digitalWrite(dir_Der, LOW);
   moveMotor(steps_Der, velocity);
 }
 void left() {
@@ -252,7 +278,7 @@ void left() {
   moveMotor(steps_Izq, velocity_Izquierda);
 }
 void left_2() {
-  digitalWrite(dir_Der, LOW);
+  digitalWrite(dir_Der, HIGH);
   moveMotor(steps_Der, velocity);
 }
 void functionMoveErase(int pinSteps, int velocidad) {
@@ -272,4 +298,12 @@ void turnOn()   {
 }
 void turnOn_2() {
   digitalWrite(reset_Der, HIGH);
+}
+void moveMotorXY() {
+  digitalWrite(steps_Izq, HIGH);
+  digitalWrite(steps_Der, HIGH);
+  delayMicroseconds(speedFZ);
+  digitalWrite(steps_Izq, LOW);
+  digitalWrite(steps_Der, LOW);
+  delayMicroseconds(speedFZ);
 }
