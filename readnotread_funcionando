@@ -128,34 +128,37 @@ void borrar() {
     //movimiento de motores en X Y x2
     if (flag == HIGH) {                           //Motor de la izquierda
         if (posX_Izq > 0) {                       //hacia la izquierda
-        digitalWrite(dir_Izq, LOW);
         if (counterX_Izq < posX_Izq) {
           moveMotor(steps_Izq, velocity);         //Move
           if (sensorValueA5 == HIGH) {                
             reset_Izq = 2;
             steps_Izq = 1;
             dir_Izq = 0;
+            digitalWrite(dir_Izq, HIGH);
             } else if (sensorValueA5 == LOW ) {
+            digitalWrite(dir_Izq, LOW);
             reset_Izq = 7;
             steps_Izq = 4;
             dir_Izq = 3;
-              }
+        }
           counterX_Izq++;
         }
       }
       else if (posX_Izq < 0) {                    //hacia la derecha.
-        digitalWrite(dir_Izq, HIGH);
+        
         if (counterX_Izq < (-posX_Izq)) {
           moveMotor(steps_Izq, velocity);
            if (sensorValueA4 == LOW) {
             reset_Izq = 2;
             steps_Izq = 1;
             dir_Izq = 0;
+            digitalWrite(dir_Izq, LOW);
             } else if (sensorValueA4 == HIGH) {
+            digitalWrite(dir_Izq, HIGH);
             reset_Izq = 7;
             steps_Izq = 4;
             dir_Izq = 3;
-              }
+         }
           counterX_Izq++;
         }
       }
