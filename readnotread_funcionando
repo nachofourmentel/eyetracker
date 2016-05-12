@@ -14,7 +14,7 @@ const int maxX_Izq = 10000;
   (159mm(ancho de formato de texto)* 10000pap/ 50mm)= 25645,16 (cantidad de pasos necesarios para recorrer el ancho del formato del texto)
   25646,16 / 1890pX= 13.56 = f 
 */
-float f = 2;                                                                                    // RECALCULAR con guias lineales 13.5
+float f = 20;                                                                                    // RECALCULAR con guias lineales 13.5
 long posX_Izq = 0;                                                                              //Pasos convertidos a partir de la variable en X
 long posX_Der = 0;                                                                              //Pasos convertidos a partir de la variable en X
 long counterX_Izq = 0;
@@ -41,29 +41,25 @@ const unsigned long stepsZ = 1000;                                              
 // THRS, TIMERS & SPEEDS
 const int velocity =  450;
 const int velocity_Izquierda =  150;                                                            //para evitar ruido al buscar cero
-const int velocityErase = 850;                                                                // velocity particular para el Erase (mas lento)
+const int velocityErase = 850;                                                                  // velocity particular para el Erase (mas lento)
 const int velocityZ = 650;    
 const int speedFZ = 450;
 //velocity del pivot
 const int timer = 100;                                                                           // timer uso general
-const int threshold =   8;
+const int threshold =   8;                                                                       //THS DEL HALLSENSOR
 // Fines de carrera
 int sensorValueA0;
 int sensorValueA4;
 int sensorValueA2;
 int sensorValueA5;
-int valEndIzquierda;
-int valEndDerecha;
 //FLAGS TRIGGERS
 int flag = LOW;
-int FLAG   = 0;
-int FLAG_2 = 0;
-int FLAG_3;
-int FLAG_4;
 int flagFindZero = HIGH;                        //si pongo LOW evita buscar el cero
 int flagEndX_1 = LOW;
 int flagEndX_2 = LOW;
-
+// LEDS
+const int pinLed1 = 40;
+const int pinLed2 = 41;
 // SETTINGS
 void setup() {
   //Serial.begin(9600);
@@ -74,12 +70,16 @@ void setup() {
   pinMode(reset_Der, OUTPUT);
   pinMode(steps_Der, OUTPUT);
   pinMode(dir_Der, OUTPUT);
+  pinMode(pinLed1, OUTPUT);
+  pinMode(pinLed2, OUTPUT);
   pinMode(reset_Z_Izquierda, OUTPUT);
   pinMode(steps_Z_Izquierda, OUTPUT);
   pinMode(dir_Z_Izquierda, OUTPUT);
   pinMode(reset_Z_Derecha, OUTPUT);
   pinMode(steps_Z_Derecha, OUTPUT);
   pinMode(dir_Z_Derecha, OUTPUT);
+  digitalWrite(pinLed1, LOW);
+  digitalWrite(pinLed2, LOW);
 }
 
 void loop() {
@@ -132,6 +132,22 @@ if ((moverDer == true) && (moverIzq == true)) { //para mover los 2 motores junto
     }
   if ((flagEndX_1 == HIGH) && (flagEndX_2 == HIGH))  {
     flagFindZero = LOW;
+    digitalWrite(pinLed1, HIGH);
+    delay(timer);
+    digitalWrite(pinLed1, LOW);
+    delay(timer);
+    digitalWrite(pinLed2, HIGH);
+    delay(timer);
+    digitalWrite(pinLed1, LOW);
+    delay(timer);
+    digitalWrite(pinLed1, HIGH);
+    delay(timer);
+    digitalWrite(pinLed1, LOW);
+    delay(timer);
+    digitalWrite(pinLed2, HIGH);
+    delay(timer);
+    digitalWrite(pinLed2, LOW);
+    delay(timer);
 }
 }
 }
