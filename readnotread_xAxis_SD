@@ -1,0 +1,438 @@
+//INCLUDES
+//#include <avr/pgmspace.h>     //PROGMEM
+#include <SPI.h>
+#include <SD.h>
+//ARRAY
+const PROGMEM uint16_t pixelX_Izq[] = {  10000, 5000, 9800, 4000, 9000, 2000, 9800, 1000, 500};
+long arraySize = 9;                                                                                 //726; //cantidad de fijaciones
+long n = 1;
+long m = 0;
+//HAY QUE MODIFICAR ESTO
+const int minX_Izq = 0;
+const int maxX_Izq = 10000;
+
+//variables para utilizar la memoria SD
+File myFileX, myFileY, punX, punY;//archivos de texto
+unsigned long punteroX = 0;
+unsigned long punteroY = 0;
+boolean flag_posAntX = true;
+boolean flag_posAntY = true;
+int r = 0;
+
+/*
+  factor.   10.0000 pasos son 5CM. (de motor paso a paso de brida 28mm con acople de 5mm  y varilla roscada de X mm )
+   como convertir pixeles a pasos:
+  (159mm(ancho de formato de texto)* 10000pap/ 50mm)/ 1890pX(ancho en pixeles) = f
+  (159mm(ancho de formato de texto)* 10000pap/ 50mm)= 25645,16 (cantidad de pasos necesarios para recorrer el ancho del formato del texto)
+  25646,16 / 1890pX= 13.56 = f
+*/
+float f = 10;                                                                                    // RECALCULAR con guias lineales 13.5
+long posX_Izq = 0;                                                                              //Pasos convertidos a partir de la variable en X
+long posX_Der = 0;
+long posXpasos = 0;
+long posYpasos = 0;
+long posAntX = 0; //PosX del anterior loop
+long posAntY = 0; //PosY del anterior loop
+//Pasos convertidos a partir de la variable en X
+long counterX_Izq = 0;
+long counterX_Der = 0;
+// MOTOR DERECHA
+const int reset_Der = 2;
+const int steps_Der = 23;
+const int dir_Der = 22;
+// MOTOR IZQUIERDA  // NO ES CONSTANTE
+int reset_Izq = 5;
+int steps_Izq = 4;
+int dir_Izq = 6;
+// MOTOR Z IZQUIERDA
+const int reset_Z_Izquierda = 10;
+const int steps_Z_Izquierda = 9;
+const int dir_Z_Izquierda =  8;
+// MOTOR Z DERECHA
+const int reset_Z_Derecha =  13;
+const int steps_Z_Derecha =  12;
+const int dir_Z_Derecha =    11;
+// STEPS
+const unsigned long stepsMotorErase = 800;                                                      // Pasos de borrado
+const unsigned long stepsZ = 1000;                                                              //Pasos del movimiento en Z
+// THRS, TIMERS & SPEEDS
+const int velocity =  450;
+const int velocity_Izquierda =  150;                                                            //para evitar ruido al buscar cero
+const int velocityErase = 850;                                                                  // velocity particular para el Erase (mas lento)
+const int velocityZ = 650;
+const int speedFZ = 450;
+//velocity del pivot
+const int timer = 100;                                                                           // timer uso general
+const int threshold =   8;                                                                       //THS DEL HALLSENSOR
+// Fines de carrera
+int sensorValueA0;
+int sensorValueA4;
+int sensorValueA2;
+int sensorValueA5;
+//FLAGS TRIGGERS
+int flag = LOW;
+int flagFindZero = HIGH;                        //si pongo LOW evita buscar el cero
+int flagEndX_1 = LOW;
+int flagEndX_2 = LOW;
+// LEDS
+const int pinLed1 = 40;
+const int pinLed2 = 41;
+// SETTINGS
+void setup() {
+  //Serial.begin(9600);
+  //pinModes
+  pinMode(reset_Izq, OUTPUT);
+  pinMode(steps_Izq, OUTPUT);
+  pinMode(dir_Izq, OUTPUT);
+  pinMode(reset_Der, OUTPUT);
+  pinMode(steps_Der, OUTPUT);
+  pinMode(dir_Der, OUTPUT);
+  pinMode(pinLed1, OUTPUT);
+  pinMode(pinLed2, OUTPUT);
+  pinMode(reset_Z_Izquierda, OUTPUT);
+  pinMode(steps_Z_Izquierda, OUTPUT);
+  pinMode(dir_Z_Izquierda, OUTPUT);
+  pinMode(reset_Z_Derecha, OUTPUT);
+  pinMode(steps_Z_Derecha, OUTPUT);
+  pinMode(dir_Z_Derecha, OUTPUT);
+  digitalWrite(pinLed1, LOW);
+  digitalWrite(pinLed2, LOW);
+
+  //memoria SD
+  Serial.begin(9600);
+  Serial.println("Inicializando SD...");
+
+  if (SD.begin()) { //esto aprueba que la memoria SD está disponible
+    Serial.println("OK...");
+    setPuntero();
+    //getPunteroX();
+    //getPunteroY();
+  }
+  else {
+    Serial.println("No encuentra archivo");
+  }
+}
+
+void loop() {
+  //Serial.println(sensorValueA5);
+  if (flagFindZero == HIGH) {
+    findZero();
+  }
+  sensorValueA4 = digitalRead(A2);   //PUENTE          - DER a IZQ     [DER A IZQ]
+  sensorValueA5 = digitalRead(A3);   //Fin de carrera  - DER a IZQ     [EXTREMO DERECHO]
+  borrar();
+}
+
+
+void findZero() {
+  sensorValueA0 = analogRead(A0);   //PUENTE          - IZQ a DER     [IZQ A DER]
+  sensorValueA2 = analogRead(A1);   //Fin de carrera  - IZQ a DER     [EXTREMO IZQUIERDO]
+  boolean moverIzq = false;
+  boolean moverDer = false;
+  //No quedan frenados y funciona trabado.
+  //FIN DE CARRERA EJE X. IZQUIERDA
+  if (sensorValueA0 >  threshold)     {
+    flagEndX_1 = LOW;
+    turnOn();
+    moverIzq = true;
+  }
+  if (sensorValueA0 <  threshold)     {
+    flagEndX_1  = HIGH;
+    turnOff();
+    moverIzq = false;
+  }
+  //FIN DE CARRERA EJE X. DERECHA
+  if (sensorValueA2 >  threshold)   {
+    flagEndX_2 = LOW;
+    turnOn_2();
+    moverDer = true;
+  }
+  if (sensorValueA2 <  threshold)   {
+    flagEndX_2 = HIGH;
+    turnOff_2();
+    moverDer = false;
+  }
+  if ((moverDer == true) && (moverIzq == true)) { //para mover los 2 motores juntos
+    moveMotorXY();
+  } else {//sino se mueven por separados
+    if (moverDer = true) {
+      left();
+    }
+    if (moverIzq = true) {
+      left_2();
+    }
+    if ((flagEndX_1 == HIGH) && (flagEndX_2 == HIGH))  {
+      flagFindZero = LOW;
+      digitalWrite(pinLed1, HIGH);
+      delay(timer);
+      digitalWrite(pinLed1, LOW);
+      delay(timer);
+      digitalWrite(pinLed2, HIGH);
+      delay(timer);
+      digitalWrite(pinLed1, LOW);
+      delay(timer);
+      digitalWrite(pinLed1, HIGH);
+      delay(timer);
+      digitalWrite(pinLed1, LOW);
+      delay(timer);
+      digitalWrite(pinLed2, HIGH);
+      delay(timer);
+      digitalWrite(pinLed2, LOW);
+      delay(timer);
+    }
+  }
+}
+
+void setPuntero() { //cada vez que arranca se fija en cuanto quedó el puntero de cada archivo
+  punX = SD.open("punteroX.txt", FILE_WRITE);
+  punX.seek(0);//me posiciono en el inicio del archivo
+  punX.print(punteroX);//escribe la nueva posicion del puntero
+  Serial.print(" punteroX: ");
+  Serial.print(punteroX);
+  punX.close();
+
+  //  punY = SD.open("punteroY.txt", FILE_WRITE);
+  //  punY.seek(0);//me posiciono en el inicio del archivo
+  //  punY.print(punteroY);//escribe la nueva posicion del puntero
+  //  Serial.print(", punteroY: ");
+  //  Serial.println(punteroY);
+  //  punY.close();//guarda y cierra el archivo
+}
+
+void getPunteroX() {//obtengo el lugar del punteroX
+  punX = SD.open("punteroX.txt", FILE_READ);//abro el archivo
+  punX.seek(0);//me posiciono en el inicio
+  punteroX = punX.parseInt();//agarro la primer posicion
+  Serial.print(" get punteroX: ");
+  Serial.print(punteroX);
+  punX.close();//cierro el archivo
+}
+
+//void getPunteroY() {//obtengo el lugar del punteroY
+//  punY = SD.open("punteroY.txt", FILE_READ);//abro el archivo
+//  punY.seek(0);//me posiciono en el inicio
+//  punteroY = punY.parseInt();//agarro la primer posicion
+//  Serial.print(" get punteroY: ");
+//  Serial.print(punteroY);
+//  punY.close();//cierro el archivo
+//}
+//estaría faltando una variable q me actualice la cantidad de fijaciones que agarré?!
+
+void arrayReadSD() {//obtengo posiciones de la tarjeta SD
+  Serial.println("Entrando a arrayReadSD()");
+  //solo hago getPuntero() si se cortó la luz
+  //getPunteroX();//obtengo la ultima posicion del punteroX
+  myFileX = SD.open("x1.txt", FILE_READ);//abro el archivo de fijaciones en X
+  myFileX.seek(punteroX);//posiciono el puntero
+  if (myFileX.available() > 0) {//me fijo
+    Serial.print(" Entrando al archivo X");
+    if (flag_posAntX) { //si es la primera, agarro la primera como anterior
+      myFileX.seek(0);
+      posAntX = myFileX.parseInt();//agarro la posicion inicial, para hacer el calculo
+      flag_posAntX = false;//flag para hacerlo solo la primera vez
+    }
+    posX_Izq = myFileX.parseInt(); //separa los numeros y lo guarda en posX
+    punteroX = myFileX.position(); //agarra la posicion actual
+
+    myFileX.close();
+    Serial.print(" punteroX: ");
+    Serial.print(punteroX);
+    Serial.print(", valAntX: ");
+    Serial.print(posAntX);
+    Serial.print(", valX: ");
+    Serial.println(posX_Izq);
+
+  } else { //si terminó de leer el archivo
+    Serial.println("termino el archivo");
+    punteroX = 0;//me posiciono de vuelta en 0
+    myFileX.close();//guardo y cierro
+    flag_posAntX = true;
+    //ACA ES Q RESETO QUE TERMINÓ DE LEER EL ARCHIVO
+    n = arraySize - 1;
+  }
+
+  posXpasos = (posX_Izq - posAntX) * f;//variable con la cantidad de pasos de motor
+  //posXpasos = (posAntX - posX) * f;
+  posAntX = posX_Izq; //actualizo el valor anterior
+
+  /*
+    r++;//guardar cada tanto el puntero
+    if (r > 10) { //guardo el puntero cada X fijaciones
+    setPuntero();//actualizo los punteros
+    r = 0;
+    } */
+}
+
+
+void borrar() {
+  if (flagFindZero == LOW) {
+    if (flag == LOW) {
+      arrayReadSD();
+      //secuencia de encendido()
+      digitalWrite(reset_Izq, HIGH);
+      digitalWrite(reset_Der, HIGH);
+      flag = HIGH;
+    }
+    //movimiento de motores en X Y x2
+    if (flag == HIGH) {                           //Motor de la izquierda
+      if (posXpasos > 0) {                       //hacia la izquierda
+        if (counterX_Izq < posXpasos) {
+          moveMotor(steps_Izq, velocity);         //Move
+          if (sensorValueA5 == LOW) {
+            reset_Izq = 2;
+            steps_Izq = 23;
+            dir_Izq = 22;
+            digitalWrite(dir_Izq, HIGH);
+          } else if (sensorValueA5 == HIGH ) {
+            digitalWrite(dir_Izq, LOW);
+            reset_Izq = 5;
+            steps_Izq = 4;
+            dir_Izq = 6;
+          }
+          counterX_Izq++;
+        }
+      }
+      //hacia la derecha.
+      else if (posXpasos < 0) {                    
+       
+        if (counterX_Izq < (-posXpasos)) {
+          moveMotor(steps_Izq, velocity);
+          if (sensorValueA4 == LOW) {
+            reset_Izq = 2;
+            steps_Izq = 23;
+            dir_Izq = 22;
+            digitalWrite(dir_Izq, LOW);
+          } else if (sensorValueA4 == HIGH) {
+            digitalWrite(dir_Izq, HIGH);
+            reset_Izq = 5;
+            steps_Izq = 4;
+            dir_Izq = 6;
+          }
+          counterX_Izq++;
+        }
+      }
+    }
+    if (counterX_Izq == abs(posXpasos)) {
+      delay(500);
+      eraserZDown(steps_Z_Izquierda, dir_Z_Izquierda, reset_Z_Izquierda);
+      for (int i = 0; i < 2; i++) {
+        eraseMovement(dir_Izq, steps_Z_Izquierda, dir_Z_Izquierda );
+      }
+      eraserZUp(steps_Z_Izquierda, dir_Z_Izquierda, reset_Z_Izquierda);
+      counterX_Izq = 0;
+      //counterX_Der = 0;
+      //m = n;
+      //n++;                                                // avanzo una posición en el array
+      if (n == arraySize - 1) {                           // tiene que ir -1
+       //n = 1;
+       //m = 0;
+        punteroX = 0;
+        punteroY = 0;
+        flag_posAntX = true;
+        flag_posAntY = true;
+        flagEndX_1 = LOW;
+        flagEndX_2 = LOW;
+        flagFindZero = HIGH;
+        flag = LOW;
+        findZero();
+      }
+      arrayReadSD();                                       //  nueva lectura
+    }
+  }
+}
+
+//void arrayRead() {   //FALTA LECTURA X_2
+//  /*
+//     chequear antes de moverme si se puede ir o no a ese punto, segun límites de ancho de hoja
+//     si está fuera de los límites paso al siguiente punto (sin actualizar el punto anterior)
+//     tengo que saber mi posición actual Y hacer el calculo Y ver si está dentro de mi hoja
+//     si no está dentro de mi hoja n++
+//  */
+//  posXpasos = pgm_read_word_near(pixelX_Izq + n);                            //leo nueva cordenada en X
+//  while ( posXpasos < minX_Izq || posXpasos > maxX_Izq) {                    //si posX se sale de lo límites
+//    n++;                                                                  //avanzo una posición
+//    posXpasos = pgm_read_word_near(pixelX_Izq + n);
+//  }
+//  //leo nueva posición en X
+//  posXpasos = (posXpasos - pgm_read_word_near(pixelX_Izq + m)) * f;           //posX = cantidad de pasos de motor en "x" que debe efectuar para ir a destino
+//}
+void moveMotor(int pinStep, int velocidad) {
+  digitalWrite(pinStep, HIGH);
+  delayMicroseconds(velocidad);
+  digitalWrite(pinStep, LOW);
+  delayMicroseconds(velocidad);
+}
+
+void eraseMovement(int pinDirX, int pinStepsZ, int pinDirZ) {
+  digitalWrite(pinDirX, HIGH);
+  delay(10);
+  for (unsigned long i = 0; i < stepsMotorErase; i++) {
+    functionMoveErase(steps_Izq, velocityErase);
+  }
+  digitalWrite(pinDirX, LOW);
+  delay(10);
+  for (unsigned long i = 0; i < stepsMotorErase; i++) {
+    functionMoveErase(steps_Izq, velocityErase);
+  }
+  //digitalWrite(pinDirX, HIGH);
+}
+
+
+void eraserZDown (int pinStepsZ, int pinDirZ, int pinResetZ) {
+  digitalWrite(pinResetZ, HIGH);
+  digitalWrite(pinDirZ, LOW);
+  for (int i = 0; i < stepsZ; i++) {
+    moveMotor(pinStepsZ, velocityZ);
+  }
+
+}
+void eraserZUp (int pinStepsZ, int pinDirZ, int pinResetZ) {
+  digitalWrite(pinResetZ, HIGH);
+  digitalWrite(pinDirZ, HIGH);
+  for (int i = 0; i < stepsZ; i++) {
+    moveMotor(pinStepsZ, velocityZ);
+  }
+}
+
+void right() {
+  digitalWrite(dir_Izq, HIGH);
+  moveMotor(steps_Izq, velocity);
+}
+void right_2() {
+  digitalWrite(dir_Der, LOW);
+  moveMotor(steps_Der, velocity);
+}
+void left() {
+  digitalWrite(dir_Izq, LOW );
+  moveMotor(steps_Izq, velocity_Izquierda);
+}
+void left_2() {
+  digitalWrite(dir_Der, HIGH);
+  moveMotor(steps_Der, velocity_Izquierda);
+}
+void functionMoveErase(int pinSteps, int velocidad) {
+  digitalWrite(pinSteps, HIGH);
+  delayMicroseconds(velocidad);
+  digitalWrite(pinSteps, LOW);
+  delayMicroseconds(velocidad);
+}
+void turnOff()  {
+  digitalWrite(reset_Izq, LOW);
+}
+void turnOff_2() {
+  digitalWrite(reset_Der, LOW);
+}
+void turnOn()   {
+  digitalWrite(reset_Izq, HIGH);
+}
+void turnOn_2() {
+  digitalWrite(reset_Der, HIGH);
+}
+void moveMotorXY() {
+  digitalWrite(steps_Izq, HIGH);
+  digitalWrite(steps_Der, HIGH);
+  delayMicroseconds(speedFZ);
+  digitalWrite(steps_Izq, LOW);
+  digitalWrite(steps_Der, LOW);
+  delayMicroseconds(speedFZ);
+}
