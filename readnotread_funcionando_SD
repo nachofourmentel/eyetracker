@@ -1,17 +1,13 @@
 //INCLUDES
-//#include <avr/pgmspace.h>     //PROGMEM
 #include <SPI.h>
 #include <SD.h>
-
-//ARRAY
-const PROGMEM uint16_t pixelX_Izq[] = {  10000, 5000, 9800, 4000, 9000, 2000, 9800, 1000, 500};
+//ARRAYSIZE & POSICION
 long arraySize = 9;                                                                                     //726; //cantidad de fijaciones
 long n = 1;
 long m = 0;
-//HAY QUE MODIFICAR ESTO
+//TAMAÑO DE TEXTO. PX
 const int minX_Izq = 0;
-const int maxX_Izq = 10000;
-
+const int maxX_Izq = 33071;
 //variables para utilizar la memoria SD
 File myFileX, myFileY, punX, punY;//archivos de texto
 unsigned long punteroX = 0;
@@ -19,37 +15,38 @@ unsigned long punteroY = 0;
 boolean flag_posAntX = true;
 boolean flag_posAntY = true;
 int r = 0;
-
-/*
-  factor.   10.0000 pasos son 5CM. (de motor paso a paso de brida 28mm con acople de 5mm  y varilla roscada de X mm )
+//CALCULO DE FACTOR
+/* 2,85 mt  ancho de formato de texto.
+   10.0000 pasos son 5CM.                                       (de motor paso a paso de brida 28mm con acople de 5mm  y varilla roscada de X mm )
    como convertir pixeles a pasos:
-  (159mm(ancho de formato de texto)* 10000pap/ 50mm)/ 1890pX(ancho en pixeles) = f
-  (159mm(ancho de formato de texto)* 10000pap/ 50mm)= 25645,16 (cantidad de pasos necesarios para recorrer el ancho del formato del texto)
-  25646,16 / 1890pX= 13.56 = f
+  (2850mm(ancho de formato de texto)* 10000pap/ 50mm)/ 33071px(ancho en pixeles) = f
+  (2850mm(ancho de formato de texto)* 10000pap/ 50mm)= 570000 (cantidad de pasos necesarios para recorrer el ancho del formato del texto)
+  25646,16 / 33071= 17.2 = f
 */
-float f = 20;                                                                                        // RECALCULAR con guias lineales 13.5
-long posX_Izq = 0;                                                                                   //Pasos convertidos a partir de la variable en X
+float f = 17.2;                                                                                        
+// POSICIONES & PASOS
+long posX_Izq = 0;                                                                                  
 long posX_Der = 0;
 long posXpasos = 0;
 long posYpasos = 0;
 long posAntX = 0; //PosX del anterior loop
 long posAntY = 0; //PosY del anterior loop
-//Pasos convertidos a partir de la variable en X
+//PASOS REALIZADOS.
 long counterX_Izq = 0;
 long counterX_Der = 0;
-// MOTOR DERECHA
+// MOTOR DERECHA - FIJO
 const int reset_Der = 4;
 const int steps_Der = 2;
 const int dir_Der = 22;
-// MOTOR IZQUIERDA  // NO ES CONSTANTE
+// MOTOR IZQUIERDA - VARIABLE
 int reset_Izq = 7;
 int steps_Izq = 5;
 int dir_Izq = 6;
-// MOTOR Z IZQUIERDA
+// MOTOR Z IZQUIERDA - VARIABLE
 int reset_Z_Izquierda = 10;
 int steps_Z_Izquierda = 9;
 int dir_Z_Izquierda =  8;
-// MOTOR Z DERECHA
+// MOTOR Z DERECHA - FIJO
 const int reset_Z_Derecha =  13;
 const int steps_Z_Derecha =  12;
 const int dir_Z_Derecha =    11;
@@ -57,14 +54,13 @@ const int dir_Z_Derecha =    11;
 const unsigned long stepsMotorErase = 800;                                                      // Pasos de borrado
 const unsigned long stepsZ = 1000;                                                              //Pasos del movimiento en Z
 // THRS, TIMERS & SPEEDS
-const int velocity =  450;
-const int velocity_Izquierda =  150;                                                            //para evitar ruido al buscar cero
-const int velocityErase = 850;                                                                  // velocity particular para el Erase (mas lento)
-const int velocityZ = 650;
-const int speedFZ = 450;
-//velocity del pivot
-const int timer = 100;                                                                           // timer uso general
-const int threshold =   8;                                                                       //THS DEL HALLSENSOR
+const int velocity =  450;                                                                      //Velocity por defecto.
+const int velocity_Izquierda =  150;                                                            //Velocity a la IZQ
+const int velocityErase = 850;                                                                  //Velocity de borrado (lento)
+const int velocityZ = 650;                                                                      //Velocity Z
+const int speedFZ = 450;                                                                        //Velocity FindZero
+const int timer = 100;                                                                          //Timer uso general
+const int threshold =   8;                                                                      //Threshold de sensores efecto hall.
 // Fines de carrera
 int sensorValueA0;
 int sensorValueA1;
@@ -72,7 +68,7 @@ int sensorValueA2;
 int sensorValueA3;
 //FLAGS TRIGGERS
 int flag = LOW;
-int flagFindZero = HIGH;                        //si pongo LOW evita buscar el cero
+int flagFindZero = HIGH;                                                                        //LOW evita la busqueda de zero.
 int flagEndX_1 = LOW;
 int flagEndX_2 = LOW;
 // LEDS
@@ -80,8 +76,6 @@ const int pinLed1 = 40;
 const int pinLed2 = 41;
 // SETTINGS
 void setup() {
-  //Serial.begin(9600);
-  //pinModes
   pinMode(reset_Izq, OUTPUT);
   pinMode(steps_Izq, OUTPUT);
   pinMode(dir_Izq, OUTPUT);
@@ -98,12 +92,11 @@ void setup() {
   pinMode(dir_Z_Derecha, OUTPUT);
   digitalWrite(pinLed1, LOW);
   digitalWrite(pinLed2, LOW);
-
   //memoria SD
   Serial.begin(9600);
   Serial.println("Inicializando SD...");
 
-  if (SD.begin()) { //esto prueba que la memoria SD está disponible
+  if (SD.begin()) {                                                                           //Disponibilidad de memoria SD
     Serial.println("Lecturas de tarjeta SD :  OK");
     setPuntero();
     //getPunteroX();
@@ -116,7 +109,6 @@ void setup() {
 }
 
 void loop() {
-  //Serial.println(sensorValueA3);
   if (flagFindZero == HIGH) {
     findZero();
  }
@@ -131,8 +123,7 @@ void findZero() {
   sensorValueA1 = analogRead(A1);   //Fin de carrera  - IZQ a DER     [EXTREMO IZQUIERDO]
   boolean moverIzq = false;
   boolean moverDer = false;
-  //No quedan frenados y funciona trabado.
-  //FIN DE CARRERA EJE X. IZQUIERDA
+  //Fines de carrera.
   if (sensorValueA0 >  threshold)     {
     flagEndX_1 = LOW;
     turnOn();
@@ -154,10 +145,10 @@ void findZero() {
     turnOff_2();
     moverDer = false;
   }
-  if ((moverDer == true) && (moverIzq == true)) { //para mover los 2 motores juntos
+  if ((moverDer == true) && (moverIzq == true)) {             // 2 motores juntos.
     digitalWrite(dir_Der, HIGH);
     moveMotorXY();
-  } else {//sino se mueven por separados
+  } else {                                                    //Por separado.
     if (moverDer = true) {
       left();
     }
@@ -191,10 +182,10 @@ void findZero() {
   }
 }
 
-void setPuntero() { //cada vez que arranca se fija en cuanto quedó el puntero de cada archivo
+void setPuntero() {                                       //cada vez que arranca se fija en cuanto quedó el puntero de cada archivo
   punX = SD.open("punteroX.txt", FILE_WRITE);
-  punX.seek(0);//me posiciono en el inicio del archivo
-  punX.print(punteroX);//escribe la nueva posicion del puntero
+  punX.seek(0);                                           //me posiciono en el inicio del archivo
+  punX.print(punteroX);                                   //escribe la nueva posicion del puntero
   Serial.println("                             ");
   Serial.print(" punteroX: ");
   Serial.print(punteroX);
@@ -209,13 +200,13 @@ void setPuntero() { //cada vez que arranca se fija en cuanto quedó el puntero d
   //  punY.close();//guarda y cierra el archivo
 }
 
-void getPunteroX() {//obtengo el lugar del punteroX
-  punX = SD.open("punteroX.txt", FILE_READ);//abro el archivo
-  punX.seek(0);//me posiciono en el inicio
-  punteroX = punX.parseInt();//agarro la primer posicion
+void getPunteroX() {                                  //obtengo el lugar del punteroX
+  punX = SD.open("punteroX.txt", FILE_READ);          //abro el archivo
+  punX.seek(0);                                       //me posiciono en el inicio
+  punteroX = punX.parseInt();                         //agarro la primer posicion
   Serial.print(" get punteroX: ");
   Serial.print(punteroX);
-  punX.close();//cierro el archivo
+  punX.close();                                       //cierro el archivo
 }
 
 //void getPunteroY() {//obtengo el lugar del punteroY
@@ -226,9 +217,8 @@ void getPunteroX() {//obtengo el lugar del punteroX
 //  Serial.print(punteroY);
 //  punY.close();//cierro el archivo
 //}
-//estaría faltando una variable q me actualice la cantidad de fijaciones que agarré?!
 
-void arrayReadSD() {//obtengo posiciones de la tarjeta SD
+void arrayReadSD() {                                  //obtengo posiciones de la tarjeta SD
   Serial.println("Entrando a arrayReadSD()");
   //solo hago getPuntero() si se cortó la luz
   //getPunteroX();//obtengo la ultima posicion del punteroX
@@ -282,7 +272,7 @@ void borrar() {
       digitalWrite(reset_Der, HIGH);
       flag = HIGH;
     }
-    //movimiento de motores en X Y x2
+    //movimiento de motores en X Y X2
     if (flag == HIGH) {                           //Motor de la izquierda
       if (posXpasos > 0) {                       //hacia la izquierda
         if (counterX_Izq < posXpasos) {
@@ -351,22 +341,6 @@ void borrar() {
     }
   }
 }
-
-//void arrayRead() {   //FALTA LECTURA X_2
-//  /*
-//     chequear antes de moverme si se puede ir o no a ese punto, segun límites de ancho de hoja
-//     si está fuera de los límites paso al siguiente punto (sin actualizar el punto anterior)
-//     tengo que saber mi posición actual Y hacer el calculo Y ver si está dentro de mi hoja
-//     si no está dentro de mi hoja n++
-//  */
-//  posXpasos = pgm_read_word_near(pixelX_Izq + n);                            //leo nueva cordenada en X
-//  while ( posXpasos < minX_Izq || posXpasos > maxX_Izq) {                    //si posX se sale de lo límites
-//    n++;                                                                  //avanzo una posición
-//    posXpasos = pgm_read_word_near(pixelX_Izq + n);
-//  }
-//  //leo nueva posición en X
-//  posXpasos = (posXpasos - pgm_read_word_near(pixelX_Izq + m)) * f;           //posX = cantidad de pasos de motor en "x" que debe efectuar para ir a destino
-//}
 
 void moveMotor(int pinStep, int velocidad) {
   digitalWrite(pinStep, HIGH);
