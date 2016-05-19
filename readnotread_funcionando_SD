@@ -27,7 +27,7 @@ int r = 0;
   (159mm(ancho de formato de texto)* 10000pap/ 50mm)= 25645,16 (cantidad de pasos necesarios para recorrer el ancho del formato del texto)
   25646,16 / 1890pX= 13.56 = f
 */
-float f = 10;                                                                                        // RECALCULAR con guias lineales 13.5
+float f = 20;                                                                                        // RECALCULAR con guias lineales 13.5
 long posX_Izq = 0;                                                                                   //Pasos convertidos a partir de la variable en X
 long posX_Der = 0;
 long posXpasos = 0;
@@ -46,9 +46,9 @@ int reset_Izq = 7;
 int steps_Izq = 5;
 int dir_Izq = 6;
 // MOTOR Z IZQUIERDA
-const int reset_Z_Izquierda = 10;
-const int steps_Z_Izquierda = 9;
-const int dir_Z_Izquierda =  8;
+int reset_Z_Izquierda = 10;
+int steps_Z_Izquierda = 9;
+int dir_Z_Izquierda =  8;
 // MOTOR Z DERECHA
 const int reset_Z_Derecha =  13;
 const int steps_Z_Derecha =  12;
@@ -67,9 +67,9 @@ const int timer = 100;                                                          
 const int threshold =   8;                                                                       //THS DEL HALLSENSOR
 // Fines de carrera
 int sensorValueA0;
-int sensorValueA4;
+int sensorValueA1;
 int sensorValueA2;
-int sensorValueA5;
+int sensorValueA3;
 //FLAGS TRIGGERS
 int flag = LOW;
 int flagFindZero = HIGH;                        //si pongo LOW evita buscar el cero
@@ -103,32 +103,32 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Inicializando SD...");
 
-  if (SD.begin()) { //esto aprueba que la memoria SD está disponible
-    Serial.println("OK...");
+  if (SD.begin()) { //esto prueba que la memoria SD está disponible
+    Serial.println("Lecturas de tarjeta SD :  OK");
     setPuntero();
     //getPunteroX();
     //getPunteroY();
   }
   else {
-    Serial.println("No encuentra archivo");
+    Serial.println("ERROR: No encuentra archivo");
   }
+   Serial.println(" Buscando posicion X = 0 ");
 }
 
 void loop() {
-  //Serial.println(sensorValueA5);
+  //Serial.println(sensorValueA3);
   if (flagFindZero == HIGH) {
     findZero();
-  }
-  sensorValueA4 = digitalRead(A2);   //PUENTE          - DER a IZQ     [DER A IZQ]
-  sensorValueA5 = digitalRead(A3);   //Fin de carrera  - DER a IZQ     [EXTREMO DERECHO]
+ }
+  sensorValueA2 = digitalRead(A2);   //PUENTE          - DER a IZQ     [DER A IZQ]
+  sensorValueA3 = digitalRead(A3);   //Fin de carrera  - DER a IZQ     [EXTREMO DERECHO]
   borrar();
-
 }
 
 
 void findZero() {
   sensorValueA0 = analogRead(A0);   //PUENTE          - IZQ a DER     [IZQ A DER]
-  sensorValueA2 = analogRead(A1);   //Fin de carrera  - IZQ a DER     [EXTREMO IZQUIERDO]
+  sensorValueA1 = analogRead(A1);   //Fin de carrera  - IZQ a DER     [EXTREMO IZQUIERDO]
   boolean moverIzq = false;
   boolean moverDer = false;
   //No quedan frenados y funciona trabado.
@@ -144,12 +144,12 @@ void findZero() {
     moverIzq = false;
   }
   //FIN DE CARRERA EJE X. DERECHA
-  if (sensorValueA2 >  threshold)   {
+  if (sensorValueA1 >  threshold)   {
     flagEndX_2 = LOW;
     turnOn_2();
     moverDer = true;
   }
-  if (sensorValueA2 <  threshold)   {
+  if (sensorValueA1 <  threshold)   {
     flagEndX_2 = HIGH;
     turnOff_2();
     moverDer = false;
@@ -166,6 +166,11 @@ void findZero() {
     }
     if ((flagEndX_1 == HIGH) && (flagEndX_2 == HIGH))  {
       flagFindZero = LOW;
+      delay(500);
+      Serial.println(" Se encontro posicion X = 0 ");
+      Serial.println("                             ");
+      Serial.println(" Comenzando lecturas. ");
+      Serial.println("                             ");
       digitalWrite(pinLed1, HIGH);
       delay(timer);
       digitalWrite(pinLed1, LOW);
@@ -190,8 +195,10 @@ void setPuntero() { //cada vez que arranca se fija en cuanto quedó el puntero d
   punX = SD.open("punteroX.txt", FILE_WRITE);
   punX.seek(0);//me posiciono en el inicio del archivo
   punX.print(punteroX);//escribe la nueva posicion del puntero
+  Serial.println("                             ");
   Serial.print(" punteroX: ");
   Serial.print(punteroX);
+  Serial.println("                             ");
   punX.close();
 
   //  punY = SD.open("punteroY.txt", FILE_WRITE);
@@ -257,7 +264,6 @@ void arrayReadSD() {//obtengo posiciones de la tarjeta SD
   posXpasos = (posX_Izq - posAntX) * f;//variable con la cantidad de pasos de motor
   //posXpasos = (posAntX - posX) * f;
   posAntX = posX_Izq; //actualizo el valor anterior
-
   /*
     r++;//guardar cada tanto el puntero
     if (r > 10) { //guardo el puntero cada X fijaciones
@@ -281,12 +287,12 @@ void borrar() {
       if (posXpasos > 0) {                       //hacia la izquierda
         if (counterX_Izq < posXpasos) {
           moveMotor(steps_Izq, velocity);         //Move
-          if (sensorValueA5 == LOW) {
+          if (sensorValueA3 == LOW) {
             reset_Izq = 4;
             steps_Izq = 2;
             dir_Izq = 22;
             digitalWrite(dir_Izq, HIGH);
-          } else if (sensorValueA5 == HIGH ) {
+          } else if (sensorValueA3 == HIGH ) {
             digitalWrite(dir_Izq, LOW);
             reset_Izq = 7;
             steps_Izq = 5;
@@ -300,12 +306,12 @@ void borrar() {
        
         if (counterX_Izq < (-posXpasos)) {
           moveMotor(steps_Izq, velocity);
-          if (sensorValueA4 == LOW) {
+          if (sensorValueA2 == LOW) {
             reset_Izq = 4;
             steps_Izq = 2;
             dir_Izq = 22;
             digitalWrite(dir_Izq, LOW);
-          } else if (sensorValueA4 == HIGH) {
+          } else if (sensorValueA2 == HIGH) {
             digitalWrite(dir_Izq, HIGH);
             reset_Izq = 7;
             steps_Izq = 5;
@@ -323,10 +329,12 @@ void borrar() {
       }
       eraserZUp(steps_Z_Izquierda, dir_Z_Izquierda, reset_Z_Izquierda);
       counterX_Izq = 0;
+      
       //counterX_Der = 0;
       //m = n;
       //n++;                                                // avanzo una posición en el array
       if (n == arraySize - 1) {                           // tiene que ir -1
+       
        //n = 1;
        //m = 0;
         punteroX = 0;
@@ -359,6 +367,7 @@ void borrar() {
 //  //leo nueva posición en X
 //  posXpasos = (posXpasos - pgm_read_word_near(pixelX_Izq + m)) * f;           //posX = cantidad de pasos de motor en "x" que debe efectuar para ir a destino
 //}
+
 void moveMotor(int pinStep, int velocidad) {
   digitalWrite(pinStep, HIGH);
   delayMicroseconds(velocidad);
@@ -377,6 +386,7 @@ void eraseMovement(int pinDirX, int pinStepsZ, int pinDirZ) {
   for (unsigned long i = 0; i < stepsMotorErase; i++) {
     functionMoveErase(steps_Izq, velocityErase);
   }
+  //digitalWrite(pinDirX, HIGH);
 }
 
 
